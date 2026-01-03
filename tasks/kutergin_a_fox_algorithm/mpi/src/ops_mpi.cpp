@@ -64,11 +64,15 @@ bool FoxAlgorithmMPI::CheckMatrices(const std::vector<std::vector<double>> &ma,
 }
 
 void FoxAlgorithmMPI::SpreadB(int n, std::vector<double> &lb) {
-  const auto &matrix_b = GetInput().second;
+  int rk = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rk);
 
-  for (int i = 0; i < n; ++i) {
-    for (int j = 0; j < n; ++j) {
-      lb[(static_cast<std::size_t>(i) * n) + j] = matrix_b[i][j];
+  if (rk == 0) {
+    const auto &matrix_b = GetInput().second;
+    for (int i = 0; i < n; ++i) {
+      for (int j = 0; j < n; ++j) {
+        lb[(static_cast<std::size_t>(i) * n) + j] = matrix_b[i][j];
+      }
     }
   }
 
@@ -185,6 +189,13 @@ bool FoxAlgorithmMPI::RunImpl() {
   }
 
   CollectResults(rk, sz, n, rpp, rem, lr, lc);
+  if (rk != 0) {
+    GetOutput().assign(static_cast<std::size_t>(n), std::vector<double>(n));
+  }
+
+  for (int i = 0; i < n; ++i) {
+    MPI_Bcast(GetOutput()[i].data(), n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  }
   return true;
 }
 
